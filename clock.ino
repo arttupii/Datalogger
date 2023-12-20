@@ -17,8 +17,8 @@ int task_clock_set(bool init) {
   }
 
   char *v = NULL;
-  char short = 59;
-  char short = 0;
+  char short max = 59;
+  char short min = 0;
   switch (m) {
     case 0: lcd_printP(1, F("^^")); v = &hour; min = 0; max = 23; break;
     case 1: lcd_printP(1, F("   ^^")); v = &minute; break;
