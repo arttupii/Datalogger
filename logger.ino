@@ -2,6 +2,13 @@
 #include <SPI.h>
 #include <SD.h>
 #include <time.h>
+#include<ADS1115_WE.h>
+#include<Wire.h>
+#include <EEPROM.h>
+
+#define ADC_I2C_ADDRESS 0x48
+
+ADS1115_WE adc = ADS1115_WE(ADC_I2C_ADDRESS);
 
 const int chipSelect = 10;
 #define LED_PIN 3
@@ -10,22 +17,89 @@ bool recording = false;
 
 void(* resetFunc) (void) = 0;
 
+#define UPDATE_CALIBRATION_VALUE(x) EEPROM.put(0x00, x)
+#define GET_CALIBRATION_VALUE(x) EEPROM.get(0x00, x)
+
+void calibrateCurrent(){
+   lcd_printP(0, F("Kalibrointi"));
+   lcd_printP(1, F("Aloitettu"));
+
+   adc.setVoltageRange_mV(ADS1115_RANGE_0256); 
+   
+   delay(1000);
+   lcd.setCursor(0, 1);
+   float c = 0.0;
+   lcd.print(F("|          |"));
+   lcd.setCursor(1, 1);
+   for(int i=0;i<10;i++) {
+        lcd.print(F("-"));
+        c+=readChannel(ADS1115_COMP_2_3);
+        delay(500);
+   }
+   lcd_printP(0, F("Kalibrointi"));
+   lcd_printP(1, F("Valmis"));
+   UPDATE_CALIBRATION_VALUE(c);
+   delay(3000);
+}
+
+void initADC() {
+
+  if (!adc.init()) {
+    Serial.println("ADS1115 not connected!");
+  }
+
+
+  adc.setVoltageRange_mV(ADS1115_RANGE_4096); 
+
+  adc.setCompareChannels(ADS1115_COMP_0_1); //comment line/change parameter to change channel
+  adc.setConvRate(ADS1115_860_SPS); //uncomment if you want to change the default
+  adc.setMeasureMode(ADS1115_SINGLE); //comment line/change parameter to change mode
+
+  adc.setPermanentAutoRangeMode(false);
+}
 float getVoltage() {
-  return 15.3;
+  adc.setVoltageRange_mV(ADS1115_RANGE_4096); 
+  float t =  readChannel(ADS1115_COMP_0_1) * 15.0;
+  Serial.println(t);
+  return t;
 }
 float getCurrent() {
-  return 3.4;
+  float c;
+  GET_CALIBRATION_VALUE(c);
+  
+  adc.setVoltageRange_mV(ADS1115_RANGE_0256); 
+  
+  float i = readChannel(ADS1115_COMP_2_3);
+    
+  return (i-c)*1000;
+}
+
+float readChannel(ADS1115_MUX channel) {
+  float voltage = 0.0;
+  adc.setCompareChannels(channel);
+
+  for (int i = 0; i < 10; i++) {
+    adc.startSingleMeasurement();
+    while (adc.isBusy()) {}
+    voltage += adc.getResult_V(); // alternative: getResult_mV for Millivolt
+    delay(1);
+  }
+  return voltage / 10.0;
 }
 
 void dumpToFile() {
   File dataFile = SD.open("/datalog.txt", FILE_WRITE);
-  time_t ltime;
-  time(&ltime);
-  dataFile.print(millis() / 1000); dataFile.print(";");
-  dataFile.print(ctime(ltime)); dataFile.print(";");
-  dataFile.print(temperatureC); dataFile.print(";");
-  dataFile.print(getVoltage()); dataFile.print(";");
-  dataFile.print(getCurrent()); dataFile.println(";");
+  DateTime now = rtc.now();
+
+  dataFile.print(millis() / 1000); dataFile.print(F(";"));
+
+  dataFile.print(now.year()); dataFile.print(F("-")); dataFile.print(now.month()); dataFile.print(F("-")); dataFile.print(now.day()); dataFile.print(F(" "));
+  dataFile.print(now.hour()); dataFile.print(F(":")); dataFile.print(now.minute()); dataFile.print(F(":")); dataFile.print(now.second()); dataFile.print(F(";"));
+
+
+  dataFile.print(floatToStr(temperatureC)); dataFile.print(F(";"));
+  dataFile.print(floatToStr(getVoltage())); dataFile.print(F(";"));
+  dataFile.print(floatToStr(getCurrent())); dataFile.println(F(";"));
   dataFile.close();
 }
 
@@ -122,9 +196,9 @@ int task_interval_set(bool init) {
   }
   lcd_printP(0, F("Mittausvali"));
   if (interval <= 60) {
-    lcd_printf(1, "aika = %ds", interval);
+    lcd_printf(1, F("aika = %ds"), interval);
   } else {
-    lcd_printf(1, "aika = %dmin", interval / 60);
+    lcd_printf(1, F("aika = %dmin"), interval / 60);
   }
   if (button.button_up()) {
     if (interval < 5) {

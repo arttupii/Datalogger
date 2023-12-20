@@ -1,6 +1,12 @@
 #include <LiquidCrystal_I2C.h>
 #include  <Wire.h>
-#include <time.h>
+#include<ADS1115_WE.h>
+#include<Wire.h>
+#include "RTClib.h"
+
+//RTClib
+
+RTC_DS3231 rtc;
 
 #define BUTTON_UP 1
 #define BUTTON_DOWN 2
@@ -83,6 +89,21 @@ void setup()
   Serial.begin(115200);
   //task_clock_set(true);
   initDallas();
+  initADC();
+  if (! rtc.begin()) {
+    Serial.println(F("Couldn't find RTC"));
+    Serial.flush();
+    while (1) delay(10);
+  }
+    if (rtc.lostPower()) {
+    Serial.println(F("RTC lost power, let's set the time!"));
+    // When time needs to be set on a new device, or after a power loss, the
+    // following line sets the RTC to the date & time this sketch was compiled
+    rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+    // This line sets the RTC with an explicit date & time, for example to set
+    // January 21, 2014 at 3am you would call:
+    // rtc.adjust(DateTime(2014, 1, 21, 3, 0, 0));
+  }
 }
 
 void loop()
@@ -97,11 +118,22 @@ void task_update_status_on_screen() {
   static long tm = millis();
   if (millis() - tm > 1000) {
     tm = millis();
-    lcd.setCursor(0, 0);
-    lcd.print(getVoltage()); lcd.print(F("V "));
-    lcd.print(getCurrent()); lcd.print(F("A              "));
-    lcd.setCursor(0, 1);
-    lcd.print(getTemperature()); lcd.print(F("C           "));
+    float v = getVoltage();
+    float a = getCurrent();
+    float c = getTemperature();
+    lcd_printf(0, F("%c%d.%dV %c%d.%dA"), v<0?'-':' ' ,abs((int)v), abs(((int)(v*10.0))%10), a<0?'-':' ', abs((int)a), abs(((int)(a*10.0))%10));
+    lcd_printf(1, F("%d.%dC"), (int)c, ((int)(c*10.0))%10);
+  }
+}
+
+void task_show_time_date_on_screen() {
+  static long tm = millis();
+  if (millis() - tm > 1000) {
+    tm = millis();
+    DateTime now = rtc.now();
+
+    lcd_printf(0, F("%02d:%02d:%02d"), now.hour(), now.minute(), now.second());
+    lcd_printf(1, F("%02d.%02d.%d"), now.day(), now.month(), now.year());
   }
 }
 
@@ -122,6 +154,9 @@ void task_mainmenu() {
       task_update_status_on_screen();
       break;
     case 1:
+      task_show_time_date_on_screen();
+      break;
+    case 2:
       lcd_printP(0, F("1. Aloita "));
       lcd_printP(1, F("   tallennus"));
       if (button.button_ok()) {
@@ -134,7 +169,7 @@ void task_mainmenu() {
         }
       }
       break;
-    case 2:
+    case 3:
       lcd_printP(0, F("2. Aseta"));
       lcd_printP(1, F("   mittausvali"));
       if (button.button_ok()) {
@@ -144,7 +179,7 @@ void task_mainmenu() {
         }
       }
       break;
-    case 3:
+    case 4:
       lcd_printP(0, F("3. Aseta aika"));
       lcd_printP(1, F(""));
       if (button.button_ok()) {
@@ -154,11 +189,18 @@ void task_mainmenu() {
         }
       }
       break;
+    case 5:
+      lcd_printP(0, F("4. Pihtimittarin"));
+      lcd_printP(1, F("   kalibrointi"));
+      if (button.button_ok()) {
+        calibrateCurrent();
+      }
+      break;
     default:
       menulevel = 0;
       break;
     case -1:
-      menulevel = 3;
+      menulevel = 5;
       break;
   };
 

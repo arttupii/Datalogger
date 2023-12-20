@@ -1,23 +1,19 @@
 int task_clock_set(bool init) {
-  static char second = 0, minute = 0, hour = 0, dayOfWeek = 0, dayOfMonth = 1, month = 1, year = 22;
+  static char second = 0, minute = 0, hour = 0, dayOfWeek = 0, dayOfMonth = 1, month = 1, year = 23;
   lcd.setBacklight(1);
   static int m = 0;
 
   if (init) {
     m = 0;
-    /*  time_t tim;   // not a primitive datatype
-        time(&tim);
-        struct tm * tm = localtime(&tim);
-
-        second=tm->tm_sec; minute=tm->tm_min; hour=tm->tm_hour;dayOfMonth=tm->tm_mday; month=tm->tm_mon+1; year=tm->tm_year;*/
+    DateTime now = rtc.now();
+    second=now.second(); minute=now.minute(); hour=now.hour();dayOfMonth=now.day(); month=now.month(); year=now.year();
     return 1;
   }
 
-  char buf[17];
   if (m < 3) {
-    sprintf(buf, "%02d:%02d:%02d", hour, minute, second);
+    lcd_printf(0, F("%02d:%02d:%02d"), hour, minute, second);
   } else {
-    sprintf(buf, "%02d.%02d.20%02d  exit", dayOfMonth, month, year);
+    lcd_printf(0, F("%02d.%02d.20%02d  exit"), dayOfMonth, month, year);
   }
 
   char *v = NULL;
@@ -47,8 +43,9 @@ int task_clock_set(bool init) {
     second = 0;
   }
 
-  lcd_print(0, buf);
+  
   if (m == 6) {
+    rtc.adjust(DateTime(year+2000, month, dayOfMonth, hour, minute, second));
     return 0;
   }
   return 1;

@@ -1,5 +1,6 @@
 #include <stdarg.h>
 
+static char lcdBuf[17];
 
 unsigned char checksum(const char* values) {
   uint8_t checksum = 0;
@@ -9,9 +10,8 @@ unsigned char checksum(const char* values) {
 }
 
 void lcd_printP(int line, const __FlashStringHelper* t) {
-  static char buffer[17];
-  strncpy_P(buffer, (const char*)t, 16);
-  lcd_print(line, buffer);
+  strncpy_P(lcdBuf, (const char*)t, 16);
+  lcd_print(line, lcdBuf);
 }
 
 void lcd_print(int line, const char*t) {
@@ -34,28 +34,38 @@ void lcd_on_off(bool on) {
   else lcd.setBacklight(0);
 }
 void task_backligth_on_off() {
-  static long tm = millis();
+  static long tm = 0;
+  if(tm==0) {
+    tm = millis();
+    lcd.setBacklight(1);
+  }
 
   static Button button(0);
   if (button.button_any()) {
     lcd.setBacklight(1);
     tm = millis();
   }
-  if (millis() - tm > 10000) {
+  if (millis() - tm > 60000) {
     tm = millis();
     lcd.setBacklight(0);
     menulevel = 0;
   }
 }
 
-void lcd_printf(int line, const char* str, ...) {
+const char * floatToStr(float a){
+  dtostrf(a, 4, 2, lcdBuf);
+  char* p  = strchr(lcdBuf, '.');
+  *p = ',';
+  return lcdBuf;
+}
+
+void lcd_printf(int line, const __FlashStringHelper* str, ...) {
   va_list args;
   va_start(args, str);
-  static char buffer[17];
-  // char array to store token
-  vsnprintf(buffer, sizeof(buffer), str, args); // Use nanoprintf for formatting.
 
-  lcd_print(line, buffer);
+  vsnprintf_P(lcdBuf, sizeof(lcdBuf), (const char *)str, args); 
+
+  lcd_print(line, lcdBuf);
 
   va_end(args);
 }
