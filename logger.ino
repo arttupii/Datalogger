@@ -20,26 +20,28 @@ void(* resetFunc) (void) = 0;
 #define UPDATE_CALIBRATION_VALUE(x) EEPROM.put(0x00, x)
 #define GET_CALIBRATION_VALUE(x) EEPROM.get(0x00, x)
 
-void calibrateCurrent(){
-   lcd_printP(0, F("Kalibrointi"));
-   lcd_printP(1, F("Aloitettu"));
+void calibrateCurrent() {
+  lcd_printP(0, F("Kalibrointi"));
+  lcd_printP(1, F("Aloitettu"));
 
-   adc.setVoltageRange_mV(ADS1115_RANGE_0256); 
-   
-   delay(1000);
-   lcd.setCursor(0, 1);
-   float c = 0.0;
-   lcd.print(F("|          |"));
-   lcd.setCursor(1, 1);
-   for(int i=0;i<10;i++) {
-        lcd.print(F("-"));
-        c+=readChannel(ADS1115_COMP_2_3);
-        delay(500);
-   }
-   lcd_printP(0, F("Kalibrointi"));
-   lcd_printP(1, F("Valmis"));
-   UPDATE_CALIBRATION_VALUE(c);
-   delay(3000);
+  adc.setVoltageRange_mV(ADS1115_RANGE_0256);
+
+  delay(1000);
+  lcd.setCursor(0, 1);
+  float c = 0.0;
+  lcd.print(F("|          |"));
+  lcd.setCursor(1, 1);
+  for (int i = 0; i < 10; i++) {
+    lcd.print(F("-"));
+    c += getCurrent(true);
+    delay(500);
+  }
+  lcd_printP(0, F("Kalibrointi"));
+  lcd_printP(1, F("Valmis"));
+  UPDATE_CALIBRATION_VALUE(c/10.0);
+  Serial.print(F("Calibration value "));
+  Serial.println(c/10.0);
+  delay(3000);
 }
 
 void initADC() {
@@ -49,7 +51,7 @@ void initADC() {
   }
 
 
-  adc.setVoltageRange_mV(ADS1115_RANGE_4096); 
+  adc.setVoltageRange_mV(ADS1115_RANGE_4096);
 
   adc.setCompareChannels(ADS1115_COMP_0_1); //comment line/change parameter to change channel
   adc.setConvRate(ADS1115_860_SPS); //uncomment if you want to change the default
@@ -58,20 +60,22 @@ void initADC() {
   adc.setPermanentAutoRangeMode(false);
 }
 float getVoltage() {
-  adc.setVoltageRange_mV(ADS1115_RANGE_4096); 
+  adc.setVoltageRange_mV(ADS1115_RANGE_4096);
   float t =  readChannel(ADS1115_COMP_0_1) * 15.0;
   Serial.println(t);
   return t;
 }
-float getCurrent() {
+float getCurrent(bool ca) {
   float c;
   GET_CALIBRATION_VALUE(c);
-  
-  adc.setVoltageRange_mV(ADS1115_RANGE_0256); 
-  
+
+  adc.setVoltageRange_mV(ADS1115_RANGE_0256);
+
   float i = readChannel(ADS1115_COMP_2_3);
-    
-  return (i-c)*1000;
+  if (ca) {
+    return i * 1000;
+  }
+  return (i * 1000) - c;
 }
 
 float readChannel(ADS1115_MUX channel) {
@@ -97,9 +101,9 @@ void dumpToFile() {
   dataFile.print(now.hour()); dataFile.print(F(":")); dataFile.print(now.minute()); dataFile.print(F(":")); dataFile.print(now.second()); dataFile.print(F(";"));
 
 
-  dataFile.print(floatToStr(temperatureC)); dataFile.print(F(";"));
-  dataFile.print(floatToStr(getVoltage())); dataFile.print(F(";"));
-  dataFile.print(floatToStr(getCurrent())); dataFile.println(F(";"));
+  dataFile.print(floatToStr(temperatureC)); dataFile.print(F(";C;"));
+  dataFile.print(floatToStr(getVoltage())); dataFile.print(F(";V;"));
+  dataFile.print(floatToStr(getCurrent(false))); dataFile.println(F(";A;"));
   dataFile.close();
 }
 

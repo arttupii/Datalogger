@@ -2,11 +2,17 @@
 
 static char lcdBuf[17];
 
-unsigned char checksum(const char* values) {
-  uint8_t checksum = 0;
-  int len = strlen(values);
-  for (int i = 0; i < len; i++) checksum ^= values[i];
-  return checksum;
+uint16_t ChecksumFletcher16(byte *data, size_t count )
+{//https://www.luisllamas.es/en/arduino-checksum/
+   uint8_t sum1 = 0;
+   uint8_t sum2 = 0;
+
+   for(size_t index = 0; index < count; ++index )
+   {
+      sum1 = sum1 + (uint8_t)data[index];
+      sum2 = sum2 + sum1;
+   }
+   return (sum2 << 8) | sum1;
 }
 
 void lcd_printP(int line, const __FlashStringHelper* t) {
@@ -15,8 +21,8 @@ void lcd_printP(int line, const __FlashStringHelper* t) {
 }
 
 void lcd_print(int line, const char*t) {
-  unsigned s[2];
-  unsigned s2 = checksum(t);
+  static uint16_t s[2];
+  uint16_t s2 = ChecksumFletcher16(t, strlen(t));
 
   if (s[line] == s2) return;
   s[line] = s2;
@@ -27,6 +33,7 @@ void lcd_print(int line, const char*t) {
   }
   lcd.setCursor(0, line);
   lcd.print( t);
+  Serial.println(t);
 }
 
 void lcd_on_off(bool on) {

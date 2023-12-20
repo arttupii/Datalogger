@@ -1,3 +1,4 @@
+
 #include <LiquidCrystal_I2C.h>
 #include  <Wire.h>
 #include<ADS1115_WE.h>
@@ -119,7 +120,7 @@ void task_update_status_on_screen() {
   if (millis() - tm > 1000) {
     tm = millis();
     float v = getVoltage();
-    float a = getCurrent();
+    float a = getCurrent(false);
     float c = getTemperature();
     lcd_printf(0, F("%c%d.%dV %c%d.%dA"), v<0?'-':' ' ,abs((int)v), abs(((int)(v*10.0))%10), a<0?'-':' ', abs((int)a), abs(((int)(a*10.0))%10));
     lcd_printf(1, F("%d.%dC"), (int)c, ((int)(c*10.0))%10);

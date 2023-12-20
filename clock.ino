@@ -1,5 +1,5 @@
 int task_clock_set(bool init) {
-  static char second = 0, minute = 0, hour = 0, dayOfWeek = 0, dayOfMonth = 1, month = 1, year = 23;
+  static short second = 0, minute = 0, hour = 0, dayOfWeek = 0, dayOfMonth = 1, month = 1, year = 23;
   lcd.setBacklight(1);
   static int m = 0;
 
@@ -17,15 +17,15 @@ int task_clock_set(bool init) {
   }
 
   char *v = NULL;
-  char max = 59;
-  char min = 0;
+  char short = 59;
+  char short = 0;
   switch (m) {
     case 0: lcd_printP(1, F("^^")); v = &hour; min = 0; max = 23; break;
     case 1: lcd_printP(1, F("   ^^")); v = &minute; break;
     case 2: lcd_printP(1, F("      ^^")); break;
     case 3: lcd_printP(1, F("^^")); v = &dayOfMonth; min = 1; max = 31; break;
     case 4: lcd_printP(1, F("   ^^")); v = &month; min = 1; max = 12; break;
-    case 5: lcd_printP(1, F("      ^^^^")); v = &year; min = 23; max = 50; break;
+    case 5: lcd_printP(1, F("      ^^^^")); v = &year; min = 22; max = 50; break;
   };
 
   button.update();
